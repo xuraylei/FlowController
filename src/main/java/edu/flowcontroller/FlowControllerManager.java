@@ -44,6 +44,11 @@ import org.slf4j.LoggerFactory;
 
 import edu.flowcontroller.protocol.FCPredicate;
 import edu.flowcontroller.protocol.action.EventType;
+import edu.flowcontroller.protocol.action.FCAction;
+import edu.flowcontroller.protocol.action.FCActionControl;
+import edu.flowcontroller.protocol.action.FCActionTransition;
+import edu.flowcontroller.protocol.action.FCActionTrigger;
+import edu.flowcontroller.protocol.action.FCActionType;
 import edu.flowcontroller.protocol.action.Operation;
 import edu.flowcontroller.protocol.action.OperationType;
 
@@ -52,19 +57,32 @@ public class FlowControllerManager implements IOFMessageListener, IFloodlightMod
 	protected IFloodlightProviderService floodlightProvider;
 	protected static Logger logger;
 	
-	protected List<FlowControllerRule> rules;
-	
+	protected List<FlowControllerPolicy> policies;
+	protected static MacAddress FCMAC = MacAddress.of("11:11:11:11:11:11");
 	
 	//use the src mac address as test app id
-	public void addFlowControllerRuleTest(){
-			Object src = new Object("ANY",IPv4Address.of("10.0.0.1"),
-					MacAddress.of("aa:aa:aa:aa:aa:aa"), new AppGroup((byte)0X01), new DeviceGroup((byte)0X01));
-			Object dst = new Object("ANY",IPv4Address.of("10.0.0.2"),
-					MacAddress.of("bb:bb:bb:bb:bb:bb"), new AppGroup((byte)0X01), new DeviceGroup((byte)0X01));
+	public void addPolicyTest(){
+			// one stage policy
+			FlowControllerPolicy fcp = new FlowControllerPolicy((byte)1);
 			
+			IPv4Address srcIP = IPv4Address.of("10.0.0.1");
+			IPv4Address dstIP = IPv4Address.of("10.0.0.2");
+			IPv4Address redirectIP = IPv4Address.of("10.0.0.3");
+			MacAddress srcMAC = MacAddress.of("aa:aa:aa:aa:aa:aa");
+			MacAddress dstMAC = MacAddress.of("bb:bb:bb:bb:bb:bb");
+			MacAddress redirectMAC = MacAddress.of("cc:cc:cc:cc:cc:cc");
+			
+			//rules for stage 1
+			byte stage1 = 1;
+			
+			Object srcObj1 = new Object(Object.ANY,srcIP,
+					srcMAC, new AppGroup(AppGroup.UNKNOWN), new DeviceGroup(DeviceGroup.UNKNOWN));
+			Object dstObj1 = new Object(Object.NET,dstIP,
+					dstMAC, new AppGroup(AppGroup.UNKNOWN), new DeviceGroup(DeviceGroup.UNKNOWN));
+			
+			/* do not use OF match any more
 			//assume OF1.3
 			OFFactory my13Factory = OFFactories.getFactory(OFVersion.OF_13);
-			
 			Match netMatch = my13Factory.buildMatch()
 				    .setExact(MatchField.IN_PORT, OFPort.of(1))
 				    .setExact(MatchField.ETH_TYPE, EthType.IPv4)
@@ -72,10 +90,38 @@ public class FlowControllerManager implements IOFMessageListener, IFloodlightMod
 				   // .setExact(MatchField.IP_PROTO, IpProtocol.TCP)
 				    //.setExact(MatchField.TCP_DST, TransportPort.of(80))
 				    .build();
+			*/
 			
-			FCPredicate p = new FCPredicate(EventType.TIME);
-			p.addOperation(EventType.TIME, new Operation(OperationType.GEQ, (byte) 8),new Operation(OperationType.LEQ, (byte)10));
+			//we put network match in the openflow match field
+			FCMatch match1 = new FCMatch().setHostName("Turbotax");
 			
+			FCPredicate p1 = new FCPredicate(EventType.TIME);
+			p1.addOperation(EventType.TIME, new Operation(OperationType.GEQ, 
+						 (byte) 8),new Operation(OperationType.LEQ, (byte)10));
+			//Latitude and longitude for location
+			p1.addOperation(EventType.LOCATION, new Operation(OperationType.EQUAL, 
+					(byte) 11), new Operation(OperationType.EQUAL, (byte) 44));
+			
+			FCActionTransition action11 = new FCActionTransition();
+			action11.setNextStage((byte)2);
+			
+			FCActionControl action12 = new FCActionControl();
+			action12.setActionType(FCActionControl.REDIRECT);
+			action12.setActionType(FCActionControl.REPORT);
+			action12.setRedirectionDevice(redirectIP, redirectMAC);
+			
+			FCActionTrigger action13 = new FCActionTrigger();
+			action13.setTriggerType(FCActionTrigger.IMMEDIATE);
+			
+			FlowControllerRule rule1 = new FlowControllerRule(srcObj1, dstObj1, match1);
+			rule1.addPredicate(p1);
+			rule1.addAction(action11);
+			rule1.addAction(action12);
+			rule1.addAction(action13);
+			
+			fcp.addPolicy((byte)1, rule1);
+
+			policies.add(fcp);
 	}
 	
 	
@@ -123,7 +169,7 @@ public class FlowControllerManager implements IOFMessageListener, IFloodlightMod
 		
 		logger = LoggerFactory.getLogger(FlowControllerManager.class);
 		
-		rules = new ArrayList();
+		policies = new ArrayList();
 		
 	}
 
@@ -158,9 +204,9 @@ public class FlowControllerManager implements IOFMessageListener, IFloodlightMod
                 IFloodlightProviderService.CONTEXT_PI_PAYLOAD);
 		
 		//test
-		addFlowControllerRuleTest();
+		//addFlowControllerRuleTest();
 		
-		for (FlowControllerRule rule: rules){
+		for (FlowControllerPolicy policy: policies){
 			
 			//according to access control policy for packet forwarding
 			OFPort inPort = (msg.getVersion().compareTo(OFVersion.OF_12) < 0 ? msg.getInPort() : msg.getMatch().get(MatchField.IN_PORT));
@@ -195,8 +241,6 @@ public class FlowControllerManager implements IOFMessageListener, IFloodlightMod
 		return Command.CONTINUE;
 	}
 
-	
-	
 	protected Match createMatchFromPacket(IOFSwitch sw, OFPort inPort, FloodlightContext cntx) {
 		// The packet in match will only contain the port number.
 		// We need to add in specifics for the hosts we're routing between.

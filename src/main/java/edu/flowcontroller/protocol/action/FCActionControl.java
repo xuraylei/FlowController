@@ -12,12 +12,12 @@ public class FCActionControl extends FCAction implements Cloneable{
 	IPv4Address ip;
 	MacAddress mac;
 	
-	final static byte ALLOW = 0x01;
-	final static byte DENY = 0x02;
-	final static byte REDIRECT = 0x03;
-	final static byte MIRROR = 0x04;
-	final static byte QUARANTINE = 0x05;
-	final static byte REPORT = 0x06;
+	public final static byte ALLOW = 1;
+	public final static byte DENY = 2;
+	public final static byte REDIRECT = 4;
+	public final static byte MIRROR = 8;
+	public final static byte QUARANTINE = 16;
+	public final static byte REPORT = 32;
 	
 	public FCActionControl()  {
 		super.setType(FCActionType.CONTROL);
@@ -39,11 +39,19 @@ public class FCActionControl extends FCAction implements Cloneable{
 		
 	}
 	
-	public FCActionControl setFlowEntry(byte flow){
-	
-		
-		return this;
+	public void setActionType(byte t){
+		if ((actionType & t) == 0) {	// the type is unset, then set it
+			actionType += t;
+		}
 	}
+	
+	public void setRedirectionDevice( IPv4Address ip, MacAddress mac){
+
+		this.ip = ip;
+		this.mac = mac;
+		
+	}
+	
 	
 	public  byte[] serialize() throws IOException {
 		ByteArrayOutputStream out = new ByteArrayOutputStream( );

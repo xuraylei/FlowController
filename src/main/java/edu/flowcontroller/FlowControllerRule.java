@@ -27,7 +27,10 @@ class AppGroup{
 	public byte getAppGroup() {
 		return this.appGroup;
 	}
-		
+	
+	public int getLength() {
+		return Byte.SIZE;
+	}
 }
 
 class DeviceGroup{
@@ -45,6 +48,10 @@ class DeviceGroup{
 		return this.deviceGroup;
 	}
 	
+	public int getLength() {
+		return Byte.SIZE;
+	}
+	
 }
 
 class DeviceID{
@@ -55,17 +62,26 @@ class DeviceID{
 		this.mac = m;
 		this.ip = i;
 	}
+	
+	public int getLength() {
+		return ip.getLength() + mac.getLength();
+	}
 }
 
 class Object{
 	//ANY means wildcards for app/process name
 	final static String ANY = "any";
+	final static String NET = "net";
 	
 	char[] app = new char[10]; // the size for app name is 10 bytes
 	DeviceID device;  
 	
 	AppGroup appGroup;
 	DeviceGroup deviceGroup;
+	
+	public int getLength() {
+		return app.length + device.getLength() + appGroup.getLength() + deviceGroup.getLength();
+	}
 	
 	public Object(String appName, IPv4Address deviceIP, MacAddress deviceMAC, AppGroup appGroup, DeviceGroup deviceGroup) {
 		this.app = appName.toCharArray();
@@ -93,35 +109,39 @@ class Object{
 }
 	
 public class FlowControllerRule {
+	byte len;
 	Object srcObj;
 	Object dstObj;
 	
-	byte stage;
 	FCMatch match;
 	byte numPredicate;
 	byte numAction;
 	List<FCPredicate> predicates;
 	List<FCAction> actions;
 	
-	public FlowControllerRule(Object src, Object dst, FCMatch m, byte s){
+	public FlowControllerRule(Object src, Object dst, FCMatch m){
 		this.srcObj = src;
 		this.dstObj = dst;
 		this.match = m;
-		this.stage = s;
+		this.len = (byte) (this.srcObj.getLength() + this.dstObj.getLength() + match.getLength());
 		this.predicates = new ArrayList();
 		this.actions = new ArrayList();
 	}
 	
 	public FlowControllerRule addPredicate(FCPredicate predicate){
 		this.predicates.add(predicate);
-		
+		this.len += predicate.getLength();
 		return this;
 	}
 	
-	public FlowControllerRule setAction(FCAction action){
+	public FlowControllerRule addAction(FCAction action){
 		this.actions.add(action);
-		
+		this.len += action.getLength();
 		return this;
+	}
+	
+	public byte getLength() {
+		return this.len;
 	}
 	
 	public  byte[] serialize() throws IOException {
@@ -129,7 +149,6 @@ public class FlowControllerRule {
 		
 		out.write(srcObj.serialize());
 		out.write(dstObj.serialize());
-		out.write(stage);
 		out.write(match.serialize());
 		
 		out.write(numPredicate);

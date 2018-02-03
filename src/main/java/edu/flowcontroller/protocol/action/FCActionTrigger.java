@@ -5,8 +5,8 @@ import java.io.IOException;
 
 public class FCActionTrigger  extends FCAction implements Cloneable{
 	
-	final static byte IMMEDIATE = 0x01;
-	final static byte PERIODIC = 0x02;
+	public final static byte IMMEDIATE = 0x01;
+	public final static byte PERIODIC = 0x02;
 	
 	protected byte triggerType;
 	protected int interval;	//in ms

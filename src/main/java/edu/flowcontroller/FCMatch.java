@@ -42,6 +42,9 @@ class FCMatch implements Cloneable, Serializable {
 			
 		}
 		
+	  public int getLength() {
+		  return fileName.length;
+	  }
 	  
 	  
 }
