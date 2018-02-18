@@ -71,7 +71,7 @@ public class FloodlightModuleLoader {
     private static URI configFile;
 
     public static final String COMPILED_CONF_FILE =
-            "floodlightdefault.properties";
+            "flowcontroller.properties";
     public static final String FLOODLIGHT_MODULES_KEY =
             "floodlight.modules";
 

@@ -17,7 +17,7 @@ public class FlowControllerPolicy {
 	}
 	
 	public void addPolicy(byte stage, FlowControllerRule rule) {
-		rules[stage] = rule;
+		rules[stage-1] = rule;
 	}
 	
 	public  byte[] serialize() throws IOException {
