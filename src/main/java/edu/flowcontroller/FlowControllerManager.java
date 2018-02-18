@@ -10,15 +10,18 @@ import java.util.Map;
 
 import org.projectfloodlight.openflow.protocol.OFFactories;
 import org.projectfloodlight.openflow.protocol.OFFactory;
+import org.projectfloodlight.openflow.protocol.OFFlowMod;
 import org.projectfloodlight.openflow.protocol.OFMessage;
 import org.projectfloodlight.openflow.protocol.OFPacketIn;
 import org.projectfloodlight.openflow.protocol.OFPacketOut;
+import org.projectfloodlight.openflow.protocol.OFPortDesc;
 import org.projectfloodlight.openflow.protocol.OFType;
 import org.projectfloodlight.openflow.protocol.OFVersion;
 import org.projectfloodlight.openflow.protocol.action.OFAction;
 import org.projectfloodlight.openflow.protocol.action.OFActionOutput;
 import org.projectfloodlight.openflow.protocol.match.Match;
 import org.projectfloodlight.openflow.protocol.match.MatchField;
+import org.projectfloodlight.openflow.types.DatapathId;
 import org.projectfloodlight.openflow.types.EthType;
 import org.projectfloodlight.openflow.types.IPv4Address;
 import org.projectfloodlight.openflow.types.IPv4AddressWithMask;
@@ -33,11 +36,15 @@ import net.floodlightcontroller.core.FloodlightContext;
 import net.floodlightcontroller.core.IFloodlightProviderService;
 import net.floodlightcontroller.core.IOFMessageListener;
 import net.floodlightcontroller.core.IOFSwitch;
+import net.floodlightcontroller.core.IOFSwitchListener;
+import net.floodlightcontroller.core.PortChangeType;
+import net.floodlightcontroller.core.internal.IOFSwitchService;
 import net.floodlightcontroller.core.module.FloodlightModuleContext;
 import net.floodlightcontroller.core.module.FloodlightModuleException;
 import net.floodlightcontroller.core.module.IFloodlightModule;
 import net.floodlightcontroller.core.module.IFloodlightService;
 import net.floodlightcontroller.packet.Ethernet;
+import net.floodlightcontroller.staticflowentry.StaticFlowEntryPusher;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -52,13 +59,20 @@ import edu.flowcontroller.protocol.action.FCActionType;
 import edu.flowcontroller.protocol.action.Operation;
 import edu.flowcontroller.protocol.action.OperationType;
 
-public class FlowControllerManager implements IOFMessageListener, IFloodlightModule{
+public class FlowControllerManager implements IOFMessageListener, IFloodlightModule, IOFSwitchListener{
 
 	protected IFloodlightProviderService floodlightProvider;
-	protected static Logger logger;
+	protected IOFSwitchService switchService;
+	
+	protected static Logger log;
+
 	
 	protected List<FlowControllerPolicy> policies;
+	
 	protected static MacAddress FCMAC = MacAddress.of("11:11:11:11:11:11");
+	
+	private  DatapathId targerTestSW = DatapathId.of("00:00:00:00:00:00:00:01");
+	
 	
 	//use the src mac address as test app id
 	public void addPolicyTest(){
@@ -138,8 +152,7 @@ public class FlowControllerManager implements IOFMessageListener, IFloodlightMod
 
 	@Override
 	public boolean isCallbackOrderingPostreq(OFType type, String name) {
-		// TODO Auto-generated method stub
-		return false;
+		 return (type.equals(OFType.PACKET_IN) && name.equals("forwarding"));
 	}
 
 	@Override
@@ -158,7 +171,7 @@ public class FlowControllerManager implements IOFMessageListener, IFloodlightMod
 	public Collection<Class<? extends IFloodlightService>> getModuleDependencies() {
 		Collection<Class<? extends IFloodlightService>> l = new ArrayList<Class<? extends IFloodlightService>>();
 		l.add(IFloodlightProviderService.class);
-
+		l.add(IOFSwitchService.class);
 		return l;
 	}
 
@@ -166,10 +179,13 @@ public class FlowControllerManager implements IOFMessageListener, IFloodlightMod
 	public void init(FloodlightModuleContext context) throws FloodlightModuleException {
 		floodlightProvider = context
 				.getServiceImpl(IFloodlightProviderService.class);
+		switchService = context.getServiceImpl(IOFSwitchService.class);
+		log = LoggerFactory.getLogger(FlowControllerManager.class);
 		
-		logger = LoggerFactory.getLogger(FlowControllerManager.class);
+		policies = new ArrayList<FlowControllerPolicy>();
 		
-		policies = new ArrayList();
+		//for test
+		addPolicyTest();
 		
 	}
 
@@ -177,6 +193,8 @@ public class FlowControllerManager implements IOFMessageListener, IFloodlightMod
 	public void startUp(FloodlightModuleContext context) throws FloodlightModuleException {
 
 		floodlightProvider.addOFMessageListener(OFType.PACKET_IN, this);
+		switchService.addOFSwitchListener(this);
+
 	}
 
 	@Override
@@ -192,14 +210,13 @@ public class FlowControllerManager implements IOFMessageListener, IFloodlightMod
 		return Command.CONTINUE;
 	}
 	
-	
-	
-	//handle report action from the data plane
+
+	//handle report from the data plane
 	private Command processFlowControllerPacket(IOFSwitch sw, OFPacketIn msg, FloodlightContext cntx) {
-		//TODO: according to app's logic
+		//TODO: implement interfaces for apps
 		
 		//FCPolicyRegistration reg_msg = new FCPolicyRegistration();
-		
+		/*
 		Ethernet eth = IFloodlightProviderService.bcStore.get(cntx,
                 IFloodlightProviderService.CONTEXT_PI_PAYLOAD);
 		
@@ -232,11 +249,11 @@ public class FlowControllerManager implements IOFMessageListener, IFloodlightMod
 	            logger.error("Failure serialization", e);
 	        }
 		    pob.setData(byte_reg_msg);
-		*/
+		
 		    sw.write(pob.build(), null);	
 		}
 		
-	
+		*/
 		
 		return Command.CONTINUE;
 	}
@@ -259,5 +276,75 @@ public class FlowControllerManager implements IOFMessageListener, IFloodlightMod
 		}
 
 		return mb.build();
+	}
+
+
+	@Override
+	public void switchAdded(DatapathId sid) {
+		log.info("switch " + sid + " is added.");
+		if (sid.equals(targerTestSW)) {
+			log.info("Install policies into sw" + sid.toString());
+			installFlowControllerPolicies(sid);
+		}
+		
+	}
+
+	private void installFlowControllerPolicies(DatapathId switchId) {
+		IOFSwitch sw = switchService.getSwitch(targerTestSW);
+		if (sw == null) {
+			log.error("Cannot find the target switch for Flow Controller policies");
+			return;
+		}
+		
+		for (FlowControllerPolicy p: policies){
+			OFPacketOut.Builder pob = sw.getOFFactory().buildPacketOut();
+			
+			//set an OF action, doesn't matter
+			OFActionOutput.Builder actionBuilder = sw.getOFFactory().actions().buildOutput();
+		    actionBuilder.setPort(OFPort.FLOOD);
+		    pob.setActions(Collections.singletonList((OFAction) actionBuilder.build()));
+		    
+		    //use xid 1 for policy installation message, can be changed later
+		    pob.setXid(1);
+		    
+		    //serialize Flow Controller message
+		    byte[] data;
+		  
+			try {
+				data = p.serialize();
+				pob.setData(data);
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+			sw.write(pob.build());
+		}
+	}
+	
+
+	@Override
+	public void switchRemoved(DatapathId switchId) {
+		// TODO Auto-generated method stub
+		
+	}
+
+
+	@Override
+	public void switchActivated(DatapathId switchId) {
+		// TODO Auto-generated method stub
+		
+	}
+
+
+	@Override
+	public void switchPortChanged(DatapathId switchId, OFPortDesc port, PortChangeType type) {
+		// TODO Auto-generated method stub
+		
+	}
+
+
+	@Override
+	public void switchChanged(DatapathId switchId) {
+		// TODO Auto-generated method stub
+		
 	}
 }
