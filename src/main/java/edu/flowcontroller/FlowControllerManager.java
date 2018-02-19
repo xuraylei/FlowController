@@ -213,9 +213,15 @@ public class FlowControllerManager implements IOFMessageListener, IFloodlightMod
 
 	//handle report from the data plane
 	private Command processFlowControllerPacket(IOFSwitch sw, OFPacketIn msg, FloodlightContext cntx) {
-		//TODO: implement interfaces for apps
+	
+		//handle policy request
+		//check if the message is for flow controller
+		if ( msg.getXid() != 1) {
+			return Command.CONTINUE;
+		}
 		
-		//FCPolicyRegistration reg_msg = new FCPolicyRegistration();
+		
+		
 		/*
 		Ethernet eth = IFloodlightProviderService.bcStore.get(cntx,
                 IFloodlightProviderService.CONTEXT_PI_PAYLOAD);
@@ -255,7 +261,7 @@ public class FlowControllerManager implements IOFMessageListener, IFloodlightMod
 		
 		*/
 		
-		return Command.CONTINUE;
+		return Command.STOP;
 	}
 
 	protected Match createMatchFromPacket(IOFSwitch sw, OFPort inPort, FloodlightContext cntx) {
