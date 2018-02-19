@@ -2,40 +2,39 @@ package edu.flowcontroller.protocol;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.util.*;
 
 import edu.flowcontroller.protocol.action.Operation;
 
 
-//TODO: add any numbers of actions
+//TODO: add any numbers of operations
 public class FCPredicate {
-	byte size;
+	byte length;
 	byte event;
-	protected Operation[] operations;
+	protected List<Operation> operations;
 	
 	
 	public FCPredicate (byte e){
-		this.size = (byte) this.getLength();
+		this.length = 2;
 		this.event = e;
-		this.operations = new Operation[2];
+		this.operations = new ArrayList<>();
 	}
 	
-	public static int getLength(){
-		return Integer.SIZE + Byte.SIZE + 2*Operation.getLength(); 
-		//return 15;
+	public byte getLength(){
+		return this.length; 
 	}
 	
-	public FCPredicate addOperation(byte event, Operation operation1, Operation operation2){
-		this.event = event;
-		this.operations[0] = operation1;
-		this.operations[1] = operation2;
+	public void addOperation(Operation op){
 		
-		return this;
+		this.operations.add(op);
+		this.length += op.getLength();
+		
 	}
 	
 	public  byte[] serialize() throws IOException {
 		ByteArrayOutputStream out = new ByteArrayOutputStream();
 		
-		out.write(size);
+		out.write(length);
 		out.write(event);
 		for (Operation op : this.operations){
 			 out.write(op.serialize());

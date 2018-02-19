@@ -106,15 +106,19 @@ public class FlowControllerManager implements IOFMessageListener, IFloodlightMod
 				    .build();
 			*/
 			
-			//we put network match in the openflow match field
-			FCMatch match1 = new FCMatch().setHostName("Turbotax");
+			
+			FCMatch match = new FCMatch(FCMatch.HOST_MATCH_ONLY);
+			match.setHostMatch("Turbotax", FCMatch.FILE_OP_WRITE, 100);
+			match.setNetMatch(-1, -1, (byte)-1, (short)-1, (short)-1);
 			
 			FCPredicate p1 = new FCPredicate(EventType.TIME);
-			p1.addOperation(EventType.TIME, new Operation(OperationType.GEQ, 
-						 (byte) 8),new Operation(OperationType.LEQ, (byte)10));
+			p1.addOperation(new Operation(OperationType.GEQ, (byte) 8));
+			p1.addOperation(new Operation(OperationType.LEQ, (byte)10));
 			//Latitude and longitude for location
-			p1.addOperation(EventType.LOCATION, new Operation(OperationType.EQUAL, 
-					(byte) 11), new Operation(OperationType.EQUAL, (byte) 44));
+			FCPredicate p2 = new FCPredicate(EventType.LOCATION);
+			p2.addOperation(new Operation(OperationType.EQUAL, 
+					(byte) 11));
+			p2.addOperation(new Operation(OperationType.EQUAL, (byte) 44));
 			
 			FCActionTransition action11 = new FCActionTransition();
 			action11.setNextStage((byte)2);
@@ -127,8 +131,9 @@ public class FlowControllerManager implements IOFMessageListener, IFloodlightMod
 			FCActionTrigger action13 = new FCActionTrigger();
 			action13.setTriggerType(FCActionTrigger.IMMEDIATE);
 			
-			FlowControllerRule rule1 = new FlowControllerRule(srcObj1, dstObj1, match1);
+			FlowControllerRule rule1 = new FlowControllerRule(srcObj1, dstObj1, match);
 			rule1.addPredicate(p1);
+			rule1.addPredicate(p2);
 			rule1.addAction(action11);
 			rule1.addAction(action12);
 			rule1.addAction(action13);
@@ -319,6 +324,7 @@ public class FlowControllerManager implements IOFMessageListener, IFloodlightMod
 			try {
 				data = p.serialize();
 				pob.setData(data);
+				
 			} catch (IOException e) {
 				e.printStackTrace();
 			}

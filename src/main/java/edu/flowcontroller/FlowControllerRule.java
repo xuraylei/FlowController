@@ -72,6 +72,9 @@ class Object{
 	//ANY means wildcards for app/process name
 	final static String ANY = "any";
 	final static String NET = "net";
+	final static String PROCESS = "process";
+	final static String FILE = "file";
+	final static String MEM = "mem";
 	
 	char[] app = new char[10]; // the size for app name is 10 bytes
 	DeviceID device;  
