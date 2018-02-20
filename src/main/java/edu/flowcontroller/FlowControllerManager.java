@@ -330,6 +330,185 @@ public class FlowControllerManager implements IOFMessageListener, IFloodlightMod
 		return p;
 	}	
 	
+	public List<FlowControllerPolicy> addMultiStagePolicyTest(){
+		// one stage policy
+	
+		List<FlowControllerPolicy> p = new ArrayList<FlowControllerPolicy>();
+	
+		FlowControllerPolicy fcp = new FlowControllerPolicy((byte)5);
+		
+		IPv4Address anyIP = IPv4Address.of("0.0.0.0");
+		
+		IPv4Address srcIP = IPv4Address.of("10.0.0.1");
+		IPv4Address dstIP = IPv4Address.of("10.0.0.2");
+		
+		IPv4Address suspiciousIP = IPv4Address.of("10.0.0.100");
+		
+		MacAddress srcMAC = MacAddress.of("aa:aa:aa:aa:aa:aa");
+		MacAddress dstMAC = MacAddress.of("bb:bb:bb:bb:bb:bb");
+		
+		IPv4Address IPCService_IP = IPv4Address.of("10.0.0.3");
+		MacAddress IPCService_MAC  = MacAddress.of("cc:cc:cc:cc:cc:cc");
+		
+		//rules for stage 1
+		byte stage1 = 1;
+		
+		Object srcObj1 = new Object(Object.ANY,srcIP,
+				srcMAC, new AppGroup(AppGroup.UNKNOWN), new DeviceGroup(DeviceGroup.UNKNOWN));
+		Object dstObj1 = new Object(Object.NET,dstIP,
+				dstMAC, new AppGroup(AppGroup.UNKNOWN), new DeviceGroup(DeviceGroup.UNKNOWN));
+		
+		FCMatch match1 = new FCMatch(FCMatch.NETWORK_MATCH_ONLY);
+		
+		//0 means wildcard
+		match1.setNetMatch(anyIP, dstIP, (byte)0, (short)0, (short)0);
+		
+		FCPredicate p11 = new FCPredicate(EventType.TIME);
+		p11.addOperation(new Operation(OperationType.GEQ, (byte) 8));
+		p11.addOperation(new Operation(OperationType.LEQ, (byte)17));
+		//Latitude and longitude for location
+		FCPredicate p12 = new FCPredicate(EventType.LOCATION);
+		p12.addOperation(new Operation(OperationType.EQUAL, 
+				(byte) 100));
+		p12.addOperation(new Operation(OperationType.EQUAL, (byte) 244));
+		
+		FCActionTransition action11 = new FCActionTransition();
+		action11.setNextStage((byte)2);
+		
+		FCActionControl action12 = new FCActionControl();
+		action12.setActionType(FCActionControl.REDIRECT);
+		action12.setActionType(FCActionControl.REPORT);
+		action12.setRedirectionDevice(IPCService_IP, IPCService_MAC);
+		
+		FCActionTrigger action13 = new FCActionTrigger();
+		action13.setTriggerType(FCActionTrigger.IMMEDIATE);
+		
+		FlowControllerRule rule1 = new FlowControllerRule(srcObj1, dstObj1, match1);
+		rule1.addPredicate(p11);
+		rule1.addPredicate(p12);
+		rule1.addAction(action11);
+		rule1.addAction(action12);
+		rule1.addAction(action13);
+		///////////////////////////////////////////////////////////////////////////////////
+		
+		//rules for stage 2
+		byte stage2 = 2;
+		
+		Object srcObj2 = new Object(Object.ANY,srcIP,
+				srcMAC, new AppGroup(AppGroup.UNKNOWN), new DeviceGroup(DeviceGroup.UNKNOWN));
+		Object dstObj2 = new Object(Object.NET,dstIP,
+				dstMAC, new AppGroup(AppGroup.UNKNOWN), new DeviceGroup(DeviceGroup.UNKNOWN));
+		
+		FCMatch match2 = new FCMatch(FCMatch.NETWORK_MATCH_ONLY);
+		
+		//0 means wildcard
+		match2.setNetMatch(anyIP, suspiciousIP, (byte)0, (short)0, (short)0);
+		
+		FCPredicate p21 = new FCPredicate(EventType.TIME);
+		p21.addOperation(new Operation(OperationType.GEQ, (byte) 8));
+		p21.addOperation(new Operation(OperationType.LEQ, (byte)17));
+		//Latitude and longitude for location
+		FCPredicate p22 = new FCPredicate(EventType.LOCATION);
+		p22.addOperation(new Operation(OperationType.EQUAL, 
+				(byte) 100));
+		p22.addOperation(new Operation(OperationType.EQUAL, (byte) 244));
+		
+		FCActionTransition action21 = new FCActionTransition();
+		action21.setNextStage((byte)3);
+		
+		FCActionControl action22 = new FCActionControl();
+		action22.setActionType(FCActionControl.REDIRECT);
+		action22.setActionType(FCActionControl.REPORT);
+		action22.setRedirectionDevice(IPCService_IP, IPCService_MAC);
+		
+		FCActionTrigger action23 = new FCActionTrigger();
+		action23.setTriggerType(FCActionTrigger.IMMEDIATE);
+		
+		FlowControllerRule rule2 = new FlowControllerRule(srcObj2, dstObj2, match2);
+		rule2.addPredicate(p21);
+		rule2.addPredicate(p22);
+		rule2.addAction(action21);
+		rule2.addAction(action22);
+		rule2.addAction(action23);
+		///////////////////////////////////////////////////////////////////////////////////	
+		
+		//rules for stage 3
+		byte stage3 = 3;
+		
+		Object srcObj3 = new Object(Object.ANY,srcIP,
+				srcMAC, new AppGroup(AppGroup.UNKNOWN), new DeviceGroup(DeviceGroup.UNKNOWN));
+		Object dstObj3 = new Object(Object.FS,dstIP,
+				dstMAC, new AppGroup(AppGroup.UNKNOWN), new DeviceGroup(DeviceGroup.UNKNOWN));
+		
+		FCMatch match3 = new FCMatch(FCMatch.HOST_MATCH_ONLY);
+		
+		match3.setHostMatch("*.exe", FCMatch.FILE_OP_WR, 100);
+		
+		FCPredicate p31 = new FCPredicate(EventType.TIME);
+		p31.addOperation(new Operation(OperationType.GEQ, (byte) 8));
+		p31.addOperation(new Operation(OperationType.LEQ, (byte)17));
+		//Latitude and longitude for location
+		FCPredicate p32 = new FCPredicate(EventType.LOCATION);
+		p32.addOperation(new Operation(OperationType.EQUAL, 
+				(byte) 100));
+		p32.addOperation(new Operation(OperationType.EQUAL, (byte) 244));
+		
+		FCActionTransition action31 = new FCActionTransition();
+		action31.setNextStage((byte)4);
+		
+		FCActionTrigger action32 = new FCActionTrigger();
+		action32.setTriggerType(FCActionTrigger.IMMEDIATE);
+		
+		FlowControllerRule rule3 = new FlowControllerRule(srcObj3, dstObj3, match3);
+		rule3.addPredicate(p31);
+		rule3.addPredicate(p32);
+		rule3.addAction(action31);
+		rule3.addAction(action32);
+		///////////////////////////////////////////////////////////////////////////////////	
+		
+		
+		//rules for stage 2
+		byte stage4 = 4;
+		
+		Object srcObj4 = new Object(Object.ANY,srcIP,
+				srcMAC, new AppGroup(AppGroup.UNKNOWN), new DeviceGroup(DeviceGroup.UNKNOWN));
+		Object dstObj4 = new Object(Object.NET,dstIP,
+				dstMAC, new AppGroup(AppGroup.UNKNOWN), new DeviceGroup(DeviceGroup.UNKNOWN));
+		
+		FCMatch match4 = new FCMatch(FCMatch.NETWORK_MATCH_ONLY);
+		
+		//0 means wildcard
+		match4.setNetMatch(anyIP, suspiciousIP, (byte)0, (short)0, (short)0);
+		
+		FCActionTransition action41 = new FCActionTransition();
+		action41.setNextStage((byte)4);
+		
+		FCActionControl action42 = new FCActionControl();
+		action42.setActionType(FCActionControl.REDIRECT);
+		action42.setActionType(FCActionControl.REPORT);
+		action42.setRedirectionDevice(IPCService_IP, IPCService_MAC);
+		;
+		
+		FCActionTrigger action43 = new FCActionTrigger();
+		action43.setTriggerType(FCActionTrigger.IMMEDIATE);
+		
+		FlowControllerRule rule4 = new FlowControllerRule(srcObj4, dstObj4, match4);
+		rule3.addAction(action41);
+		rule3.addAction(action42);
+		rule3.addAction(action43);
+		///////////////////////////////////////////////////////////////////////////////////	
+
+		
+		fcp.addPolicy((byte)1, rule1);
+		fcp.addPolicy((byte)2, rule2);
+		fcp.addPolicy((byte)3, rule3);
+		fcp.addPolicy((byte)4, rule4);
+
+		p.add(fcp);
+		
+		return p;
+	}	
+	
 	@Override
 	public String getName() {
 		return "Flow Controller";

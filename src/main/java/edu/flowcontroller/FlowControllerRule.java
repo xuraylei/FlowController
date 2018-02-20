@@ -72,6 +72,7 @@ class Object{
 	//ANY means wildcards for app/process name
 	final static String ANY = "any";
 	final static String NET = "net";
+	final static String FS = "filesystem";
 	final static String PROCESS = "process";
 	final static String FILE = "file";
 	final static String MEM = "mem";

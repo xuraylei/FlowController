@@ -16,6 +16,7 @@ class FCMatch implements Cloneable, Serializable {
 	  final static byte HOST_NETWORK_MATCH = 3;
 	  
 	  final static byte FILE_OP_WRITE = 2;
+	  final static byte FILE_OP_WR = 3;
 	  final static byte FILE_OP_READ = 4;
 	    
 	  //mask for match fields
