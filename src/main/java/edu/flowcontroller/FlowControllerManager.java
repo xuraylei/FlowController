@@ -1,10 +1,14 @@
 package edu.flowcontroller;
 
 import java.io.IOException;
+import java.nio.ByteBuffer;		// kevin, for utility funciton
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Dictionary;
+import java.util.Enumeration;
+import java.util.Hashtable;
 import java.util.List;
 import java.util.Map;
 
@@ -69,10 +73,31 @@ public class FlowControllerManager implements IOFMessageListener, IFloodlightMod
 	
 	protected List<FlowControllerPolicy> policies;
 	
+	// kevin, we need a policy ID which has multiple state policies
+	// 			FOR NOW, index of policyDB is used as a unique policy ID
+	//protected List<List<FlowControllerPolicy>> policyDB;
+	protected Dictionary policyDB;
+	protected int policyID = 0;				// unique ID starting from 0
+	
 	protected static MacAddress FCMAC = MacAddress.of("11:11:11:11:11:11");
 	
-	private  DatapathId targerTestSW = DatapathId.of("00:00:00:00:00:00:00:01");
+	// kevin, this is for my switch
+	//private  DatapathId targerTestSW = DatapathId.of("00:00:00:00:00:00:00:01");
+	private  DatapathId targerTestSW = DatapathId.of("00:00:08:00:27:3e:c0:ce");
 	
+	// kevin, utility function for int to byte array
+	public static byte[] intToBytes( final int i ) {
+	    ByteBuffer bb = ByteBuffer.allocate(4); 
+	    bb.putInt(i); 
+	    return bb.array();
+	}
+	
+	// kevin, utility function for short to byte array
+	public static byte[] shortToBytes( final short s ) {
+		ByteBuffer bb = ByteBuffer.allocate(2); 
+		bb.putShort(s); 
+		return bb.array();
+	}	
 	
 	//use the src mac address as test app id
 	public void addPolicyTest(){
@@ -94,6 +119,8 @@ public class FlowControllerManager implements IOFMessageListener, IFloodlightMod
 			Object dstObj1 = new Object(Object.NET,dstIP,
 					dstMAC, new AppGroup(AppGroup.UNKNOWN), new DeviceGroup(DeviceGroup.UNKNOWN));
 			
+			log.info("@@@@@@ Obj LENGTH: {}", srcObj1.getLength());
+			
 			/* do not use OF match any more
 			//assume OF1.3
 			OFFactory my13Factory = OFFactories.getFactory(OFVersion.OF_13);
@@ -108,8 +135,11 @@ public class FlowControllerManager implements IOFMessageListener, IFloodlightMod
 			
 			
 			FCMatch match = new FCMatch(FCMatch.HOST_MATCH_ONLY);
+			//FCMatch match = new FCMatch(FCMatch.NETWORK_MATCH_ONLY);
 			match.setHostMatch("Turbotax", FCMatch.FILE_OP_WRITE, 100);
-			match.setNetMatch(-1, -1, (byte)-1, (short)-1, (short)-1);
+			// kevin, IPV4Address is used as parameters
+			//match.setNetMatch(-1, -1, (byte)-1, (short)-1, (short)-1);
+			match.setNetMatch(srcIP, dstIP, (byte)6, (short)80, (short)90);
 			
 			FCPredicate p1 = new FCPredicate(EventType.TIME);
 			p1.addOperation(new Operation(OperationType.GEQ, (byte) 8));
@@ -143,6 +173,162 @@ public class FlowControllerManager implements IOFMessageListener, IFloodlightMod
 			policies.add(fcp);
 	}
 	
+	//use the src mac address as test app id
+	public List<FlowControllerPolicy> addSingleFilePolicyTest(){
+			// one stage policy
+		
+			List<FlowControllerPolicy> p = new ArrayList<FlowControllerPolicy>();
+		
+			FlowControllerPolicy fcp = new FlowControllerPolicy((byte)1);
+			
+			IPv4Address srcIP = IPv4Address.of("10.0.0.1");
+			IPv4Address dstIP = IPv4Address.of("10.0.0.2");
+			IPv4Address redirectIP = IPv4Address.of("10.0.0.3");
+			MacAddress srcMAC = MacAddress.of("aa:aa:aa:aa:aa:aa");
+			MacAddress dstMAC = MacAddress.of("bb:bb:bb:bb:bb:bb");
+			MacAddress redirectMAC = MacAddress.of("cc:cc:cc:cc:cc:cc");
+			
+			//rules for stage 1
+			byte stage1 = 1;
+			
+			Object srcObj1 = new Object(Object.ANY,srcIP,
+					srcMAC, new AppGroup(AppGroup.UNKNOWN), new DeviceGroup(DeviceGroup.UNKNOWN));
+			Object dstObj1 = new Object(Object.NET,dstIP,
+					dstMAC, new AppGroup(AppGroup.UNKNOWN), new DeviceGroup(DeviceGroup.UNKNOWN));
+			
+			log.info("@@@@@@ Obj LENGTH: {}", srcObj1.getLength());
+			
+			/* do not use OF match any more
+			//assume OF1.3
+			OFFactory my13Factory = OFFactories.getFactory(OFVersion.OF_13);
+			Match netMatch = my13Factory.buildMatch()
+				    .setExact(MatchField.IN_PORT, OFPort.of(1))
+				    .setExact(MatchField.ETH_TYPE, EthType.IPv4)
+				    .setMasked(MatchField.IPV4_SRC, IPv4AddressWithMask.of("10.0.0.1/24"))
+				   // .setExact(MatchField.IP_PROTO, IpProtocol.TCP)
+				    //.setExact(MatchField.TCP_DST, TransportPort.of(80))
+				    .build();
+			*/
+			
+			
+			FCMatch match = new FCMatch(FCMatch.HOST_MATCH_ONLY);
+			//FCMatch match = new FCMatch(FCMatch.NETWORK_MATCH_ONLY);
+			match.setHostMatch("Turbotax", FCMatch.FILE_OP_WRITE, 100);
+			// kevin, IPV4Address is used as parameters
+			//match.setNetMatch(-1, -1, (byte)-1, (short)-1, (short)-1);
+			match.setNetMatch(srcIP, dstIP, (byte)6, (short)80, (short)90);
+			
+			FCPredicate p1 = new FCPredicate(EventType.TIME);
+			p1.addOperation(new Operation(OperationType.GEQ, (byte) 8));
+			p1.addOperation(new Operation(OperationType.LEQ, (byte)10));
+			//Latitude and longitude for location
+			FCPredicate p2 = new FCPredicate(EventType.LOCATION);
+			p2.addOperation(new Operation(OperationType.EQUAL, 
+					(byte) 11));
+			p2.addOperation(new Operation(OperationType.EQUAL, (byte) 44));
+			
+			FCActionTransition action11 = new FCActionTransition();
+			action11.setNextStage((byte)2);
+			
+			FCActionControl action12 = new FCActionControl();
+			action12.setActionType(FCActionControl.REDIRECT);
+			action12.setActionType(FCActionControl.REPORT);
+			action12.setRedirectionDevice(redirectIP, redirectMAC);
+			
+			FCActionTrigger action13 = new FCActionTrigger();
+			action13.setTriggerType(FCActionTrigger.IMMEDIATE);
+			
+			FlowControllerRule rule1 = new FlowControllerRule(srcObj1, dstObj1, match);
+			rule1.addPredicate(p1);
+			rule1.addPredicate(p2);
+			rule1.addAction(action11);
+			rule1.addAction(action12);
+			rule1.addAction(action13);
+			
+			fcp.addPolicy((byte)1, rule1);
+
+			p.add(fcp);
+			
+			return p;
+	}
+
+	public List<FlowControllerPolicy> addSingleNetworkPolicyTest(){
+		// one stage policy
+	
+		List<FlowControllerPolicy> p = new ArrayList<FlowControllerPolicy>();
+	
+		FlowControllerPolicy fcp = new FlowControllerPolicy((byte)1);
+		
+		IPv4Address srcIP = IPv4Address.of("10.0.0.1");
+		IPv4Address dstIP = IPv4Address.of("10.0.0.2");
+		IPv4Address redirectIP = IPv4Address.of("10.0.0.3");
+		MacAddress srcMAC = MacAddress.of("aa:aa:aa:aa:aa:aa");
+		MacAddress dstMAC = MacAddress.of("bb:bb:bb:bb:bb:bb");
+		MacAddress redirectMAC = MacAddress.of("cc:cc:cc:cc:cc:cc");
+		
+		//rules for stage 1
+		byte stage1 = 1;
+		
+		Object srcObj1 = new Object(Object.ANY,srcIP,
+				srcMAC, new AppGroup(AppGroup.UNKNOWN), new DeviceGroup(DeviceGroup.UNKNOWN));
+		Object dstObj1 = new Object(Object.NET,dstIP,
+				dstMAC, new AppGroup(AppGroup.UNKNOWN), new DeviceGroup(DeviceGroup.UNKNOWN));
+		
+		log.info("@@@@@@ Obj LENGTH: {}", srcObj1.getLength());
+		
+		/* do not use OF match any more
+		//assume OF1.3
+		OFFactory my13Factory = OFFactories.getFactory(OFVersion.OF_13);
+		Match netMatch = my13Factory.buildMatch()
+			    .setExact(MatchField.IN_PORT, OFPort.of(1))
+			    .setExact(MatchField.ETH_TYPE, EthType.IPv4)
+			    .setMasked(MatchField.IPV4_SRC, IPv4AddressWithMask.of("10.0.0.1/24"))
+			   // .setExact(MatchField.IP_PROTO, IpProtocol.TCP)
+			    //.setExact(MatchField.TCP_DST, TransportPort.of(80))
+			    .build();
+		*/
+		
+		
+		//FCMatch match = new FCMatch(FCMatch.HOST_MATCH_ONLY);
+		FCMatch match = new FCMatch(FCMatch.NETWORK_MATCH_ONLY);
+		match.setHostMatch("Turbotax", FCMatch.FILE_OP_WRITE, 100);
+		// kevin, IPV4Address is used as parameters
+		//match.setNetMatch(-1, -1, (byte)-1, (short)-1, (short)-1);
+		match.setNetMatch(srcIP, dstIP, (byte)6, (short)80, (short)90);
+		
+		FCPredicate p1 = new FCPredicate(EventType.TIME);
+		p1.addOperation(new Operation(OperationType.GEQ, (byte) 8));
+		p1.addOperation(new Operation(OperationType.LEQ, (byte)10));
+		//Latitude and longitude for location
+		FCPredicate p2 = new FCPredicate(EventType.LOCATION);
+		p2.addOperation(new Operation(OperationType.EQUAL, 
+				(byte) 11));
+		p2.addOperation(new Operation(OperationType.EQUAL, (byte) 44));
+		
+		FCActionTransition action11 = new FCActionTransition();
+		action11.setNextStage((byte)2);
+		
+		FCActionControl action12 = new FCActionControl();
+		action12.setActionType(FCActionControl.REDIRECT);
+		action12.setActionType(FCActionControl.REPORT);
+		action12.setRedirectionDevice(redirectIP, redirectMAC);
+		
+		FCActionTrigger action13 = new FCActionTrigger();
+		action13.setTriggerType(FCActionTrigger.IMMEDIATE);
+		
+		FlowControllerRule rule1 = new FlowControllerRule(srcObj1, dstObj1, match);
+		rule1.addPredicate(p1);
+		rule1.addPredicate(p2);
+		rule1.addAction(action11);
+		rule1.addAction(action12);
+		rule1.addAction(action13);
+		
+		fcp.addPolicy((byte)1, rule1);
+
+		p.add(fcp);
+		
+		return p;
+	}	
 	
 	@Override
 	public String getName() {
@@ -192,6 +378,23 @@ public class FlowControllerManager implements IOFMessageListener, IFloodlightMod
 		//for test
 		addPolicyTest();
 		
+		// for test
+		policyDB = new Hashtable<Integer, List<FlowControllerPolicy>>();
+		policyID = 0;
+		
+		// single FILE match policy test
+		List<FlowControllerPolicy> p = addSingleFilePolicyTest();
+		
+		// add it to Policy DB
+		policyDB.put(new Integer(policyID), p);
+		policyID++;
+		
+		// single NETWORK match policy test
+		p = addSingleNetworkPolicyTest();
+				
+		// add it to Policy DB
+		policyDB.put(new Integer(policyID), p);
+		policyID++;
 	}
 
 	@Override
@@ -295,7 +498,11 @@ public class FlowControllerManager implements IOFMessageListener, IFloodlightMod
 		log.info("switch " + sid + " is added.");
 		if (sid.equals(targerTestSW)) {
 			log.info("Install policies into sw" + sid.toString());
-			installFlowControllerPolicies(sid);
+			
+			// kevin, install using policy ID and corresponding policies
+			// lei's code
+			//installFlowControllerPolicies(sid);
+			installFlowControllerPolicyDB(sid);
 		}
 		
 	}
@@ -316,7 +523,10 @@ public class FlowControllerManager implements IOFMessageListener, IFloodlightMod
 		    pob.setActions(Collections.singletonList((OFAction) actionBuilder.build()));
 		    
 		    //use xid 1 for policy installation message, can be changed later
-		    pob.setXid(1);
+		    
+		    // kevin, let's use another xid value instead of 1
+		    //pob.setXid(1);
+		    pob.setXid(1234);
 		    
 		    //serialize Flow Controller message
 		    byte[] data;
@@ -329,9 +539,68 @@ public class FlowControllerManager implements IOFMessageListener, IFloodlightMod
 				e.printStackTrace();
 			}
 			sw.write(pob.build());
+			
+			// kevin, add a log
+			log.info("================== Static Policy Enforcement ============");
 		}
 	}
-	
+
+	// kevin, install all policies from policy DB (dictionary)
+	private void installFlowControllerPolicyDB(DatapathId switchId) {
+		IOFSwitch sw = switchService.getSwitch(targerTestSW);
+		if (sw == null) {
+			log.error("Cannot find the target switch for Flow Controller policies");
+			return;
+		}
+		
+		//for (Enumeration i = policyDB.elements(); i.hasMoreElements();)
+		for (Enumeration k = policyDB.keys(); k.hasMoreElements();)
+        {
+			Integer key = (Integer)k.nextElement();
+			byte uniquePolicyID = (byte)key.intValue();			// get the key
+			
+			List<FlowControllerPolicy> policyEntries = (List<FlowControllerPolicy>)policyDB.get(key);
+            
+            for (FlowControllerPolicy p: policyEntries){
+    			OFPacketOut.Builder pob = sw.getOFFactory().buildPacketOut();
+    			
+    			//set an OF action, doesn't matter
+    			OFActionOutput.Builder actionBuilder = sw.getOFFactory().actions().buildOutput();
+    		    actionBuilder.setPort(OFPort.FLOOD);
+    		    pob.setActions(Collections.singletonList((OFAction) actionBuilder.build()));
+    		    
+    		    //use xid 1 for policy installation message, can be changed later
+    		    
+    		    // kevin, let's use another xid value instead of 1
+    		    //pob.setXid(1);
+    		    pob.setXid(1234);
+    		    
+    		    //serialize Flow Controller message
+    		    byte[] data;
+    		  
+    			try {
+    				data = p.serialize();
+    				
+    				byte[] newData = new byte[data.length+1];
+    				
+    				// fill policyID in the first byte
+    				newData[0] = uniquePolicyID;
+    				System.arraycopy(data, 0, newData, 1, data.length);
+    				
+    				pob.setData(newData);
+    				
+    			} catch (IOException e) {
+    				e.printStackTrace();
+    			}
+    			sw.write(pob.build());
+    			
+    			// kevin, add a log
+    			log.info("================== Static Policy Enforcement ============");
+    		}
+        }
+ 
+		
+	}	
 
 	@Override
 	public void switchRemoved(DatapathId switchId) {

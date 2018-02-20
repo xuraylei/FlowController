@@ -87,7 +87,15 @@ class Object{
 	}
 	
 	public Object(String appName, IPv4Address deviceIP, MacAddress deviceMAC, AppGroup appGroup, DeviceGroup deviceGroup) {
-		this.app = appName.toCharArray();
+		// kevin, this statement write only length of a string without \0
+		//		  we should use a fixed length (10 bytes) of app name
+		// lei's code 
+		// this.app = appName.toCharArray();
+		// new code
+		char[] name = appName.toCharArray();
+		for(int i=0; i<appName.length(); i++)
+			app[i] = name[i];
+		
 		this.device = new DeviceID(deviceMAC, deviceIP);
 		
 		this.appGroup = appGroup;
@@ -153,6 +161,10 @@ public class FlowControllerRule {
 		out.write(srcObj.serialize());
 		out.write(dstObj.serialize());
 		out.write(match.serialize());
+		
+		// kevin, fix that numPredicate and numAction weren't updated
+		numPredicate = (byte)predicates.size();
+		numAction = (byte)actions.size();
 		
 		out.write(numPredicate);
 		out.write(numAction);

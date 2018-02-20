@@ -15,7 +15,8 @@ public class FCPredicate {
 	
 	
 	public FCPredicate (byte e){
-		this.length = 2;
+		//this.length = 2;
+		this.length = 1;			// kevin, should be 1 because of the size of the remaining byte per predicate
 		this.event = e;
 		this.operations = new ArrayList<>();
 	}

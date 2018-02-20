@@ -6,7 +6,6 @@ import java.io.IOException;
 
 
 public class Operation {
-
 	protected byte operation_type;
 	protected byte value1;
 		
@@ -22,7 +21,10 @@ public class Operation {
 	}
 	
 	public static int getLength(){
-		return Byte.SIZE + Byte.SIZE;
+		// kevin, Byte.SIZE returns the number of bits
+		// lei's code
+		//return Byte.SIZE + Byte.SIZE;
+		return Byte.SIZE/8 + Byte.SIZE/8;
 	}
 	
 	public  byte[] serialize() throws IOException {
